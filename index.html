@@ -1,0 +1,524 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);box-sizing:border-box}body{margin:0}[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>Our Little Jar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Young+Serif&family=Nunito:wght@400;600;700&display=swap">
+<style>
+/* Layout: one-screen phone app — mood chips on top, the jar centered, the opened note slides up over it */
+:root{
+  --bg:#f6eef0; --bg2:#efe2e6; --ink:#3a2530; --muted:#8a6c78;
+  --glass:rgba(255,255,255,.55); --glass-edge:rgba(120,70,90,.35);
+  --lid:#c98f6b; --lid-dark:#a8704f; --paper:#fffaf2; --chip:#fff;
+  --accent:#c2456b;
+  --display:"Young Serif",Georgia,serif;
+  --body:"Nunito",system-ui,sans-serif;
+  --hand:"Caveat","Segoe Print","Bradley Hand",cursive;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#1e1620; --bg2:#2a1f2c; --ink:#f4e6ec; --muted:#b597a5;
+  --glass:rgba(255,255,255,.08); --glass-edge:rgba(255,210,225,.3);
+  --lid:#a8704f; --lid-dark:#7d5137; --paper:#fbf3e6; --chip:#2e2331;
+  --accent:#ee7a9c; color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#1e1620; --bg2:#2a1f2c; --ink:#f4e6ec; --muted:#b597a5;
+  --glass:rgba(255,255,255,.08); --glass-edge:rgba(255,210,225,.3);
+  --lid:#a8704f; --lid-dark:#7d5137; --paper:#fbf3e6; --chip:#2e2331;
+  --accent:#ee7a9c; color-scheme:dark }
+
+html,body{height:100%}
+body{background:radial-gradient(120% 80% at 50% 0%,var(--bg2),var(--bg));color:var(--ink);font-family:var(--body);overflow:hidden}
+.app{height:100%;max-width:480px;margin:0 auto;padding-inline:16px;padding-block:18px 14px;display:flex;flex-direction:column;align-items:center;gap:14px;box-sizing:border-box}
+h1{font-family:var(--display);font-weight:400;font-size:1.7rem;margin:0;text-wrap:balance;text-align:center}
+.sub{margin:-8px 0 0;color:var(--muted);font-size:.95rem;text-align:center}
+
+.moods{display:flex;flex-wrap:wrap;justify-content:center;gap:8px}
+.mood{font:600 .9rem var(--body);border:1.5px solid transparent;background:var(--chip);color:var(--ink);padding:8px 13px;border-radius:999px;cursor:pointer;display:flex;align-items:center;gap:7px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.mood .dot{width:10px;height:10px;border-radius:50%;background:var(--c)}
+.mood[aria-pressed="true"]{border-color:var(--c);background:color-mix(in srgb,var(--c) 18%,var(--chip))}
+.mood:focus-visible,.btn:focus-visible,#jarBtn:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+
+.stage{flex:1;min-height:0;width:100%;display:flex;align-items:center;justify-content:center;position:relative}
+#jarBtn{background:none;border:0;padding:0;cursor:pointer;height:100%;max-height:420px;aspect-ratio:3/4;max-width:100%;touch-action:none}
+#jar{width:100%;height:100%;overflow:visible;transform-origin:50% 90%}
+#jar.shake{animation:shake .7s cubic-bezier(.36,.07,.19,.97)}
+@keyframes shake{
+ 0%,100%{transform:rotate(0)}15%{transform:rotate(-10deg) translateX(-6px)}30%{transform:rotate(9deg) translateX(6px)}
+ 45%{transform:rotate(-7deg)}60%{transform:rotate(5deg)}75%{transform:rotate(-3deg)}90%{transform:rotate(1deg)}}
+#jar.idle{animation:breathe 4s ease-in-out infinite}
+@keyframes breathe{50%{transform:translateY(-4px)}}
+.slip{transition:transform .5s cubic-bezier(.3,1.4,.5,1)}
+.heart{animation:float 3s ease-in-out infinite;opacity:.8}
+@keyframes float{50%{transform:translateY(-5px)}}
+
+.hint{font-size:.92rem;color:var(--muted);text-align:center;min-height:1.3em;margin:0}
+.btn{font:700 .95rem var(--body);background:var(--accent);color:#fff;border:0;border-radius:999px;padding:10px 18px;cursor:pointer}
+.btn.ghost{background:transparent;color:var(--accent);border:1.5px solid var(--accent)}
+
+/* falling folded note */
+.falling{position:absolute;left:50%;top:18%;width:54px;height:38px;margin-left:-27px;border-radius:4px;background:var(--c);box-shadow:0 4px 10px rgba(0,0,0,.2);z-index:5;animation:fall 1s cubic-bezier(.5,0,.75,1) forwards;pointer-events:none}
+.falling::after{content:"";position:absolute;inset:0;background:linear-gradient(135deg,transparent 48%,rgba(0,0,0,.12) 50%,transparent 52%)}
+@keyframes fall{0%{transform:translateY(-40px) rotate(0) scale(.7)}60%{transform:translateY(46vh) rotate(260deg) scale(1)}80%{transform:translateY(40vh) rotate(300deg)}100%{transform:translateY(44vh) rotate(340deg)}}
+
+/* opened note */
+.veil{position:fixed;inset:0;background:rgba(30,15,25,.45);display:flex;align-items:center;justify-content:center;padding:16px;z-index:10;animation:fade .3s}
+@keyframes fade{from{opacity:0}}
+.note{position:relative;width:min(100%,360px);background:var(--paper);color:#3a2530;border-radius:6px;padding:30px 26px 22px;box-shadow:0 18px 40px rgba(0,0,0,.3);transform-origin:50% 0;animation:unfold .6s cubic-bezier(.2,.9,.3,1.2)}
+.note::before{content:"";position:absolute;left:0;right:0;top:0;height:8px;background:var(--c);border-radius:6px 6px 0 0}
+.note .tape{position:absolute;top:-12px;left:50%;width:80px;height:24px;margin-left:-40px;background:color-mix(in srgb,var(--c) 45%,transparent);transform:rotate(-3deg)}
+@keyframes unfold{0%{transform:scaleY(.05) rotate(-6deg);opacity:0}60%{transform:scaleY(1.04)}100%{transform:none}}
+.note .tag{font:700 .72rem var(--body);letter-spacing:.12em;text-transform:uppercase;color:#9c6f81}
+.note p{font-family:var(--hand);font-size:1.75rem;line-height:1.25;margin:10px 0 18px}
+.note .meta{font:600 .8rem var(--body);color:#9c6f81;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.note .btn{padding:8px 16px;font-size:.9rem}
+
+.burst{position:fixed;pointer-events:none;z-index:11;font-size:20px;animation:burst 1.2s ease-out forwards;color:var(--accent)}
+@keyframes burst{to{transform:translate(var(--x),var(--y)) scale(.4);opacity:0}}
+
+.note .sig{font-family:var(--hand);font-size:1.4rem;text-align:right;color:#a04d6a;margin:-8px 0 12px}
+
+/* daily pink flower */
+.flower-veil{position:fixed;inset:0;z-index:15;background:rgba(40,15,30,.5);display:flex;align-items:center;justify-content:center;padding:16px;animation:fade .4s}
+.flower-veil.bye{animation:fadeout .4s forwards}
+@keyframes fadeout{to{opacity:0}}
+.flower-card{width:min(100%,330px);background:var(--paper);color:#3a2530;border-radius:18px;padding:20px 22px 22px;text-align:center;box-shadow:0 20px 50px rgba(0,0,0,.35);display:flex;flex-direction:column;align-items:center;gap:6px;animation:unfold .6s cubic-bezier(.2,.9,.3,1.2)}
+.flower-card svg{width:170px;height:210px;overflow:visible}
+.flower-card .stem{stroke-dasharray:200;stroke-dashoffset:200;animation:draw 1s .2s ease-out forwards}
+.flower-card .leaf{transform-box:fill-box;transform:scale(0);animation:grow .5s ease-out forwards}
+.flower-card .leaf.l1{transform-origin:100% 100%;animation-delay:.7s}
+.flower-card .leaf.l2{transform-origin:0 100%;animation-delay:.85s}
+.flower-card .petal{transform-box:view-box;transform-origin:85px 70px;transform:scale(0);animation:bloom .6s cubic-bezier(.3,1.5,.5,1) forwards}
+.flower-card .core{transform-box:fill-box;transform-origin:center;transform:scale(0);animation:grow .4s 1.9s forwards}
+@keyframes draw{to{stroke-dashoffset:0}}
+@keyframes grow{to{transform:scale(1)}}
+@keyframes bloom{to{transform:rotate(var(--r)) scale(1)}}
+.flower-card .from{font:700 .72rem var(--body);letter-spacing:.12em;text-transform:uppercase;color:#9c6f81;margin-top:4px}
+.flower-card .ily{font-family:var(--hand);font-size:2.2rem;line-height:1.1;margin:0;color:#c2456b}
+.flower-card .small{font-family:var(--hand);font-size:1.35rem;margin:0 0 10px;color:#6b4a58}
+
+/* lock screen */
+.lock{position:fixed;inset:0;z-index:20;background:radial-gradient(120% 80% at 50% 0%,var(--bg2),var(--bg));display:flex;align-items:center;justify-content:center;padding:16px}
+.lock-card{width:min(100%,340px);display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center}
+.lock-card h2{font-family:var(--display);font-weight:400;font-size:1.6rem;margin:0;text-wrap:balance}
+.lock-card .q{font-family:var(--hand);font-size:1.7rem;margin:0;color:var(--accent)}
+.padlock{width:70px;height:80px}
+.padlock .shackle{transition:transform .5s cubic-bezier(.3,1.5,.5,1);transform-origin:70% 100%}
+.lock.open .shackle{transform:translateY(-10px) rotate(25deg)}
+.lock.open{animation:lockout .6s .5s forwards}
+@keyframes lockout{to{opacity:0;visibility:hidden}}
+.pickers{display:flex;gap:10px;width:100%}
+.pickers label{flex:1;display:flex;flex-direction:column;gap:4px;font:600 .78rem var(--body);color:var(--muted);text-align:left;letter-spacing:.06em;text-transform:uppercase}
+.pickers select{font:600 1rem var(--body);padding:10px;border-radius:10px;border:1.5px solid var(--glass-edge);background:var(--chip);color:var(--ink);min-width:0}
+.pickers select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.lock-msg{min-height:1.3em;margin:0;font-size:.92rem;color:var(--muted)}
+.lock.wrong .lock-card{animation:nope .45s}
+@keyframes nope{20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
+
+@media (prefers-reduced-motion:reduce){
+  .lock.wrong .lock-card{animation:none}
+  .flower-card .stem{stroke-dashoffset:0;animation:none}
+  .flower-card .leaf,.flower-card .core{transform:none;animation:none}
+  .flower-card .petal{transform:rotate(var(--r));animation:none}
+  #jar.idle,.heart{animation:none} #jar.shake{animation-duration:.01s}
+  .falling{animation-duration:.01s} .note{animation:none}}
+</style>
+
+<div class="lock" id="lock">
+  <form class="lock-card" id="lockForm">
+    <svg class="padlock" viewBox="0 0 70 80" aria-hidden="true">
+      <path class="shackle" d="M18 38 V24 a17 17 0 0 1 34 0 V38" fill="none" stroke="var(--lid-dark)" stroke-width="8" stroke-linecap="round"/>
+      <rect x="6" y="36" width="58" height="42" rx="10" fill="var(--lid)"/>
+      <path d="M35 50 c0-5 -7-5 -6 0 l6 7 l6-7 c1-5 -6-5 -6 0z" fill="var(--paper)"/>
+    </svg>
+    <h2>This jar is just for you</h2>
+    <p class="q">When's your birthday?</p>
+    <div class="pickers">
+      <label for="bMonth">Month<select id="bMonth"></select></label>
+      <label for="bDay">Day<select id="bDay"></select></label>
+    </div>
+    <button class="btn" type="button" id="openBtn">Open the jar</button>
+    <p class="lock-msg" id="lockMsg" aria-live="polite"></p>
+  </form>
+</div>
+
+<div class="app">
+  <h1>Why I love you, Balqees</h1>
+  <p class="sub">Pick how you feel, then shake the jar.</p>
+
+  <div class="moods" id="moods" role="group" aria-label="Mood"></div>
+
+  <div class="stage" id="stage">
+    <button id="jarBtn" aria-label="Shake the jar for a note">
+      <svg id="jar" class="idle" viewBox="0 0 300 400" aria-hidden="true">
+        <defs>
+          <clipPath id="inside"><path d="M70 110 Q60 120 60 150 L60 330 Q60 370 100 372 L200 372 Q240 370 240 330 L240 150 Q240 120 230 110 Z"/></clipPath>
+          <linearGradient id="shine" x1="0" x2="1"><stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset=".25" stop-color="#fff" stop-opacity="0"/><stop offset=".8" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#fff" stop-opacity=".25"/></linearGradient>
+        </defs>
+        <ellipse cx="150" cy="382" rx="95" ry="10" fill="var(--ink)" opacity=".08"/>
+        <!-- glass body -->
+        <path d="M70 110 Q60 120 60 150 L60 330 Q60 370 100 372 L200 372 Q240 370 240 330 L240 150 Q240 120 230 110 Z" fill="var(--glass)" stroke="var(--glass-edge)" stroke-width="3"/>
+        <g id="slips" clip-path="url(#inside)"></g>
+        <path d="M70 110 Q60 120 60 150 L60 330 Q60 370 100 372 L200 372 Q240 370 240 330 L240 150 Q240 120 230 110 Z" fill="url(#shine)" pointer-events="none"/>
+        <path d="M82 150 Q78 230 84 320" stroke="#fff" stroke-opacity=".7" stroke-width="6" stroke-linecap="round" fill="none"/>
+        <!-- neck + lid -->
+        <rect x="76" y="88" width="148" height="26" rx="6" fill="var(--glass)" stroke="var(--glass-edge)" stroke-width="3"/>
+        <rect x="68" y="58" width="164" height="36" rx="10" fill="var(--lid)"/>
+        <rect x="68" y="80" width="164" height="14" rx="6" fill="var(--lid-dark)"/>
+        <path d="M150 40 C150 20 120 22 128 44 L150 62 L172 44 C180 22 150 20 150 40Z" fill="var(--accent)" class="heart"/>
+        <!-- label -->
+        <rect x="102" y="200" width="96" height="44" rx="6" fill="var(--paper)" opacity=".92" transform="rotate(-3 150 222)"/>
+        <text x="150" y="229" text-anchor="middle" font-family="Caveat, cursive" font-size="24" fill="#7a4a5c" transform="rotate(-3 150 222)" id="labelText">for you</text>
+      </svg>
+    </button>
+  </div>
+
+  <p class="hint" id="hint">Shake your phone, or tap the jar.</p>
+  <button class="btn ghost" id="motionBtn" hidden>Turn on shaking</button>
+</div>
+
+<script>
+// ✏️ Edit your notes here. Each mood has its own color and list.
+const MOODS = {
+  miss: {label:"Missing me", color:"#e58aa6", notes:[
+    "Because even from far away, you're the first person I want to tell everything to.",
+    "Because the distance is just miles. You're still the closest person to my heart.",
+    "Because every 'good morning' from you makes my whole day feel lighter.",
+    "Because I'm counting the days until I can hold your hand again.",
+    "Because missing you reminds me how lucky I am to have someone worth missing.",
+    "Because no matter how far you are, you're the first thing on my mind when I wake up.",
+    "Because the world feels a little quieter when you're not next to me.",
+    "Because every song I like somehow ends up being about you.",
+    "Because I keep saving little things to show you, like a collection of moments that belong to you.",
+    "Because the distance has never once made me doubt you.",
+    "Because I'd rather miss you than be close to anyone else.",
+    "Because one day 'far away' will just be a story we tell.",
+    "Because your messages are the best part of my phone.",
+    "Because whenever something good happens, my first thought is 'I have to tell Balqees.'",
+    "Because you make waiting feel worth it.",
+    "Because the same sky is over both of us right now.",
+    "Because I picture what you're doing at random times of the day, and it always makes me smile.",
+    "Because my heart already lives wherever you are.",
+    "Because missing you is proof that what we have is real.",
+    "Because every day that passes is one day closer to you."
+]},
+  sad: {label:"Bad day", color:"#8fb3d9", notes:[
+    "Because you're so much stronger than you feel right now.",
+    "Because your kindness to everyone else deserves to come back to you today.",
+    "Because a bad day doesn't change anything about how amazing you are.",
+    "Because I'd take every hard thing off your shoulders if I could.",
+    "Because tomorrow is a new start, and I'll be right here for it.",
+    "Because you're always so understanding with everyone else. Be that gentle with yourself today.",
+    "Because even on your worst days, you're never rude to anyone. That says everything about your heart.",
+    "Because it's okay to rest. You don't have to be strong every minute.",
+    "Because you've gotten through every hard day so far, and you'll get through this one too.",
+    "Because you always notice when other people are hurting. Today, I'm noticing you.",
+    "Because your feelings matter to me. All of them.",
+    "Because bad days pass, but the way I love you doesn't.",
+    "Because you deserve a warm drink, a soft blanket, and someone who adores you. You definitely have the last one.",
+    "Because you never make anyone feel small, and nothing today can make you small either.",
+    "Because you're allowed to cry, and I'll still think you're the strongest person I know.",
+    "Because I believe in you, even on the days you don't.",
+    "Because you make the world softer just by being in it.",
+    "Because your heart is too good to let one day decide how you see yourself.",
+    "Because I'm proud of you for getting through today, even if it was hard.",
+    "Because you're my favorite person on the good days and the bad ones."
+]},
+  sleep: {label:"Can't sleep", color:"#a99be0", notes:[
+    "Because somewhere, I'm thinking about you too. Close your eyes, I'm right there.",
+    "Because the moon we both look at makes the distance feel smaller.",
+    "Because your peace matters to me. Breathe slowly, everything is okay.",
+    "Because one day we'll fall asleep in the same place, and I can't wait.",
+    "Because your curious mind never stops, and I love that, but tonight let it rest.",
+    "Because you don't have to solve anything tonight. Tomorrow can wait.",
+    "Because you are safe, you are loved, and you are enough.",
+    "Because I hope you dream about something soft and happy. Maybe about us.",
+    "Because even the stars stay up late just to look at you.",
+    "Because every night I'm grateful that you exist.",
+    "Because your heart works so hard for everyone else. It deserves rest too.",
+    "Because you're the last thing I think about before I fall asleep.",
+    "Because I'd count sheep with you all night if it helped.",
+    "Because worries always look smaller in the morning.",
+    "Because you carry so much kindness all day. Put it down for a little while.",
+    "Because I love how your mind wonders about everything, even at 2am.",
+    "Because wherever you are, my love is sitting right next to you.",
+    "Because one deep breath for you, one for me. There, now we're together.",
+    "Because I'll still love you tomorrow, so you can sleep without worrying about that.",
+    "Because 'goodnight' from me is really 'I love you' in disguise."
+]},
+  laugh: {label:"Need a laugh", color:"#f2c46d", notes:[
+    "Because your laugh is honestly my favorite sound in the world.",
+    "Because you laugh at my worst jokes, and that's true love.",
+    "Because I love you the way Nami loves money: endlessly, and I'm never giving you up. Not even for all the treasure in the Grand Line.",
+    "Because you notice tiny details nobody else sees, then tell me about them like it's breaking news.",
+    "Because you ask 'but why?' about everything, like the cutest detective alive.",
+    "Because we can talk about absolutely nothing for hours and it's still the best part of my day.",
+    "Because you're the only person who understands my weird humor.",
+    "Because you're so observant that I can never surprise you, and I'll never stop trying.",
+    "Because if loving you were a crime, I'd happily serve a life sentence.",
+    "Because you're too polite to be rude even to people who deserve it, and it's adorable.",
+    "Because I'd share my last snack with you. That's how serious this is.",
+    "Because you're cuter than every cat video on the internet. I've done the research.",
+    "Because your curiosity can turn one simple question into a twenty-minute investigation, and I love every second of it.",
+    "Because you're my favorite notification.",
+    "Because you're the reason I smile at my phone like a fool in public.",
+    "Because if you were a vegetable, you'd be a cute-cumber.",
+    "Because my love for you has more episodes than One Piece, and it's not ending either.",
+    "Because you're the treasure, and I'm the pirate who's never giving it back.",
+    "Because even my bad jokes sound better when you're the one laughing.",
+    "Because I checked again today, and yes, you're still the cutest person alive."
+]},
+  proud: {label:"Need confidence", color:"#7fc8a9", notes:[
+    "Because you're smart, beautiful, and you don't even realize how much.",
+    "Because I'm proud of you, every single day.",
+    "Because the way you chase your goals inspires me.",
+    "Because you can do hard things. You've done them before.",
+    "Because you're the kind of person people are lucky to know.",
+    "Because your curiosity makes you brilliant. You want to understand the world, and that's rare.",
+    "Because you're kind even when nobody is watching.",
+    "Because you've never been rude to anyone, and that kind of grace is real strength.",
+    "Because you notice things other people miss. That's a gift.",
+    "Because you understand people so deeply that they feel safe with you.",
+    "Because your questions make people think.",
+    "Because your heart is the most beautiful thing about you, and that's saying a lot.",
+    "Because you don't have to be perfect to be amazing.",
+    "Because the people around you are better because you're in their lives.",
+    "Because you listen with your whole heart.",
+    "Because you are exactly enough, Balqees.",
+    "Because your patience with others is something I admire every day.",
+    "Because you make the people you love feel truly seen.",
+    "Because you're growing every day, even when it doesn't feel like it.",
+    "Because if you could see yourself the way I see you, you'd never doubt yourself again."
+]}
+};
+
+const KEYS = Object.keys(MOODS);
+let mood = "miss", busy = false;
+const $ = s => document.querySelector(s);
+const store = {
+  get(k){try{return JSON.parse(localStorage.getItem(k))}catch(e){return null}},
+  set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
+};
+let seen = store.get("jar-seen") || {};
+
+// mood chips
+const moodsEl = $("#moods");
+KEYS.forEach(k=>{
+  const b=document.createElement("button");
+  b.className="mood"; b.id="mood-"+k; b.style.setProperty("--c",MOODS[k].color);
+  b.innerHTML='<span class="dot"></span>'+MOODS[k].label;
+  b.onclick=()=>setMood(k);
+  moodsEl.appendChild(b);
+});
+function setMood(k){
+  mood=k;
+  document.querySelectorAll(".mood").forEach(b=>b.setAttribute("aria-pressed",b.id==="mood-"+k));
+  drawSlips(); store.set("jar-mood",k);
+}
+
+// paper slips inside the jar
+let slipEls=[];
+function drawSlips(){
+  const g=$("#slips"); g.innerHTML=""; slipEls=[];
+  const c=MOODS[mood].color;
+  let seed=KEYS.indexOf(mood)*7+3;
+  const rnd=()=>{seed=(seed*9301+49297)%233280;return seed/233280};
+  for(let i=0;i<26;i++){
+    const row=Math.floor(i/5), x=78+ (i%5)*32 + rnd()*14, y=350-row*30 - rnd()*10;
+    const r=(rnd()-.5)*70;
+    const el=document.createElementNS("http://www.w3.org/2000/svg","g");
+    el.setAttribute("class","slip");
+    const mix = i%3===0 ? "#fff" : c;
+    el.innerHTML=`<g transform="translate(${x} ${y}) rotate(${r})"><rect x="-17" y="-11" width="34" height="22" rx="3" fill="${c}" stroke="rgba(0,0,0,.12)"/><path d="M-17 -11 L0 2 L17 -11" fill="none" stroke="rgba(0,0,0,.15)"/>${i%3===0?'<rect x="-17" y="-11" width="34" height="22" rx="3" fill="#fff" opacity=".35"/>':''}</g>`;
+    g.appendChild(el); slipEls.push(el);
+  }
+}
+
+// pick a note, avoiding repeats until all have been read
+function pickNote(){
+  const list=MOODS[mood].notes;
+  let s=seen[mood]||[];
+  if(s.length>=list.length) s=[];
+  const left=list.map((_,i)=>i).filter(i=>!s.includes(i));
+  const i=left[Math.floor(Math.random()*left.length)];
+  s.push(i); seen[mood]=s; store.set("jar-seen",seen);
+  return {text:list[i], n:s.length, total:list.length};
+}
+
+function shake(){
+  if(busy) return; busy=true;
+  const jar=$("#jar");
+  jar.classList.remove("idle","shake"); void jar.offsetWidth; jar.classList.add("shake");
+  slipEls.forEach(el=>{el.style.transform=`translate(${(Math.random()-.5)*18}px,${-Math.random()*22}px)`});
+  if(navigator.vibrate) try{navigator.vibrate([40,30,40])}catch(e){}
+  setTimeout(()=>{
+    slipEls.forEach(el=>el.style.transform="");
+    const f=document.createElement("div"); f.className="falling";
+    f.style.setProperty("--c",MOODS[mood].color);
+    $("#stage").appendChild(f);
+    setTimeout(()=>{f.remove(); openNote(pickNote());},950);
+  },650);
+}
+
+function openNote(n){
+  const m=MOODS[mood];
+  const v=document.createElement("div"); v.className="veil";
+  v.innerHTML=`<div class="note" role="dialog" aria-label="A note for you" style="--c:${m.color}">
+    <div class="tape"></div>
+    <div class="tag">${m.label}</div>
+    <p></p>
+    <div class="sig">Mohamed ♥</div>
+    <div class="meta"><span>Note ${n.n} of ${n.total}</span><button class="btn" id="foldBtn">Fold it back</button></div></div>`;
+  v.querySelector("p").textContent=n.text;
+  document.body.appendChild(v);
+  hearts();
+  const close=()=>{v.remove(); $("#jar").classList.remove("shake"); $("#jar").classList.add("idle"); busy=false;};
+  v.querySelector("#foldBtn").onclick=close;
+  v.addEventListener("click",e=>{if(e.target===v)close()});
+  v.querySelector("#foldBtn").focus();
+}
+
+function hearts(){
+  for(let i=0;i<12;i++){
+    const h=document.createElement("div"); h.className="burst"; h.textContent="♥";
+    h.style.left=(innerWidth/2)+"px"; h.style.top=(innerHeight/2)+"px";
+    const a=Math.random()*Math.PI*2, d=110+Math.random()*90;
+    h.style.setProperty("--x",Math.cos(a)*d+"px"); h.style.setProperty("--y",Math.sin(a)*d+"px");
+    document.body.appendChild(h); setTimeout(()=>h.remove(),1300);
+  }
+}
+
+// tap or swipe the jar
+$("#jarBtn").addEventListener("click",shake);
+
+// real phone shaking
+let last=0, lastAcc=null, listening=false;
+function onMotion(e){
+  const a=e.accelerationIncludingGravity; if(!a||a.x==null) return;
+  if(lastAcc){
+    const d=Math.abs(a.x-lastAcc.x)+Math.abs(a.y-lastAcc.y)+Math.abs(a.z-lastAcc.z);
+    const now=Date.now();
+    if(d>28 && now-last>1500 && !document.querySelector(".veil")){last=now; shake();}
+  }
+  lastAcc={x:a.x,y:a.y,z:a.z};
+}
+function startMotion(){
+  if(listening) return; listening=true;
+  window.addEventListener("devicemotion",onMotion);
+}
+const btn=$("#motionBtn");
+if(typeof DeviceMotionEvent!=="undefined"){
+  if(typeof DeviceMotionEvent.requestPermission==="function"){
+    btn.hidden=false; // iPhone needs a tap to allow motion
+    btn.onclick=async()=>{
+      try{
+        const r=await DeviceMotionEvent.requestPermission();
+        if(r==="granted"){startMotion(); btn.hidden=true; $("#hint").textContent="Now shake your phone!";}
+        else $("#hint").textContent="Shaking isn't allowed here. Tap the jar instead.";
+      }catch(e){btn.hidden=true; $("#hint").textContent="Tap the jar to get a note.";}
+    };
+  } else startMotion();
+}
+
+setMood(KEYS.includes(store.get("jar-mood"))?store.get("jar-mood"):"miss");
+
+// birthday lock (the answer is stored only as a hash)
+const KEY_HASH="968d876e299066820464336e9271b35b6857d01e88123f985ac90d4e19b351b5";
+const months=["January","February","March","April","May","June","July","August","September","October","November","December"];
+const mSel=$("#bMonth"), dSel=$("#bDay");
+mSel.innerHTML='<option value="">Choose</option>'+months.map((m,i)=>`<option value="${i+1}">${m}</option>`).join("");
+dSel.innerHTML='<option value="">Choose</option>'+Array.from({length:31},(_,i)=>`<option value="${i+1}">${i+1}</option>`).join("");
+// self-contained SHA-256 so the lock works in every browser and file viewer
+function sha(s){
+  const K=[],H=[];let n=2,c=0;
+  const prime=x=>{for(let d=2;d*d<=x;d++)if(x%d===0)return false;return true};
+  const frac=x=>((x-Math.floor(x))*4294967296)|0;
+  while(c<64){if(prime(n)){if(c<8)H[c]=frac(Math.pow(n,1/2));K[c]=frac(Math.pow(n,1/3));c++}n++}
+  const bytes=unescape(encodeURIComponent(s)).split("").map(ch=>ch.charCodeAt(0));
+  const l=bytes.length*8; bytes.push(0x80);
+  while(bytes.length%64!==56)bytes.push(0);
+  for(let i=7;i>=0;i--)bytes.push(i>3?0:(l>>>(i*8))&255);
+  const r=(x,y)=>(x>>>y)|(x<<(32-y));
+  for(let i=0;i<bytes.length;i+=64){
+    const w=[];
+    for(let j=0;j<16;j++)w[j]=(bytes[i+j*4]<<24)|(bytes[i+j*4+1]<<16)|(bytes[i+j*4+2]<<8)|bytes[i+j*4+3];
+    for(let j=16;j<64;j++){
+      const s0=r(w[j-15],7)^r(w[j-15],18)^(w[j-15]>>>3), s1=r(w[j-2],17)^r(w[j-2],19)^(w[j-2]>>>10);
+      w[j]=(w[j-16]+s0+w[j-7]+s1)|0;
+    }
+    let [a,b,cc,d,e,f,g,h]=H;
+    for(let j=0;j<64;j++){
+      const t1=(h+(r(e,6)^r(e,11)^r(e,25))+((e&f)^(~e&g))+K[j]+w[j])|0;
+      const t2=((r(a,2)^r(a,13)^r(a,22))+((a&b)^(a&cc)^(b&cc)))|0;
+      h=g;g=f;f=e;e=(d+t1)|0;d=cc;cc=b;b=a;a=(t1+t2)|0;
+    }
+    H[0]=(H[0]+a)|0;H[1]=(H[1]+b)|0;H[2]=(H[2]+cc)|0;H[3]=(H[3]+d)|0;
+    H[4]=(H[4]+e)|0;H[5]=(H[5]+f)|0;H[6]=(H[6]+g)|0;H[7]=(H[7]+h)|0;
+  }
+  return H.map(x=>(x>>>0).toString(16).padStart(8,"0")).join("");
+}
+// a pink flower every time she opens the page
+const FLOWER_LINES=[
+  "Here's a flower, just because you're you.",
+  "A pink one, for my favorite person.",
+  "Picked for you, Balqees.",
+  "One more flower for the girl who deserves a whole garden.",
+  "Every time you come back, you get a flower. That's the rule."];
+function showFlower(){
+  const petals=Array.from({length:8},(_,i)=>
+    `<ellipse class="petal" cx="85" cy="44" rx="15" ry="27" fill="${i%2?'#f7a8c4':'#ec7ea6'}" style="--r:${i*45}deg;animation-delay:${1.1+i*.08}s"/>`).join("");
+  const v=document.createElement("div"); v.className="flower-veil";
+  v.innerHTML=`<div class="flower-card" role="dialog" aria-label="A flower for you">
+    <svg viewBox="0 0 170 210" aria-hidden="true">
+      <path class="stem" d="M85 205 C80 160 92 130 85 80" stroke="#6fa86f" stroke-width="5" fill="none" stroke-linecap="round"/>
+      <path class="leaf l1" d="M84 160 C60 150 52 130 58 122 C74 128 84 142 84 160Z" fill="#7fbf7f"/>
+      <path class="leaf l2" d="M87 145 C108 136 118 118 112 110 C96 116 87 128 87 145Z" fill="#8fcc8f"/>
+      ${petals}
+      <circle class="core" cx="85" cy="70" r="12" fill="#ffd27a"/>
+    </svg>
+    <div class="from">For Balqees</div>
+    <p class="ily">I love you</p>
+    <p class="small"></p>
+    <button class="btn" type="button">Thank you ♥</button></div>`;
+  v.querySelector(".small").textContent=FLOWER_LINES[Math.floor(Math.random()*FLOWER_LINES.length)]+" — Mohamed";
+  document.body.appendChild(v);
+  const close=()=>{v.classList.add("bye"); setTimeout(()=>v.remove(),400);};
+  v.querySelector("button").onclick=close;
+  v.addEventListener("click",e=>{if(e.target===v)close()});
+}
+function unlock(){
+  const l=$("#lock"); l.classList.add("open");
+  setTimeout(()=>{l.remove(); showFlower();},1100);
+  store.set("jar-open",true);
+}
+if(store.get("jar-open")){ $("#lock").remove(); showFlower(); }
+// secret test reset: tap the title 5 times quickly to lock the jar again
+let taps=0, tapTimer=null;
+$("h1").addEventListener("click",()=>{
+  taps++; clearTimeout(tapTimer); tapTimer=setTimeout(()=>taps=0,1500);
+  if(taps>=5){
+    try{localStorage.removeItem("jar-open")}catch(e){}
+    location.reload();
+  }
+});
+$("#lockForm")?.addEventListener("submit",e=>{e.preventDefault();tryOpen();});
+$("#openBtn")?.addEventListener("click",tryOpen);
+function tryOpen(){
+  const msg=$("#lockMsg"), l=$("#lock");
+  if(!mSel.value||!dSel.value){msg.textContent="Pick a month and a day.";return;}
+  let ok=false;
+  try{ ok=sha(String(+mSel.value)+"-"+String(+dSel.value))===KEY_HASH; }catch(err){}
+  if(ok){msg.textContent="Welcome back, my love ♥"; unlock();}
+  else{
+    msg.textContent="Not quite. Try again ♥";
+    l.classList.remove("wrong"); void l.offsetWidth; l.classList.add("wrong");
+  }
+}
+</script>
+
+</body>
+</html>
